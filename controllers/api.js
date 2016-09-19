@@ -7,7 +7,7 @@ const cheerio = require('cheerio');
 const graph = require('fbgraph');
 const LastFmNode = require('lastfm').LastFmNode;
 const tumblr = require('tumblr.js');
-const Github = require('github-api');
+const GitHub = require('github');
 const Twit = require('twit');
 const stripe = require('stripe')(process.env.STRIPE_SKEY);
 const twilio = require('twilio')(process.env.TWILIO_SID, process.env.TWILIO_TOKEN);
@@ -123,8 +123,9 @@ exports.getFacebook = (req, res, next) => {
  * GET /api/scraping
  * Web scraping example using Cheerio library.
  */
-exports.getScraping = (req, res) => {
+exports.getScraping = (req, res, next) => {
   request.get('https://news.ycombinator.com/', (err, request, body) => {
+    if (err) { return next(err); }
     const $ = cheerio.load(body);
     const links = [];
     $('.title a[href^="http"], a[href^="https"]').each((index, element) => {
@@ -143,9 +144,8 @@ exports.getScraping = (req, res) => {
  */
 exports.getGithub = (req, res, next) => {
   const token = req.user.tokens.find(token => token.kind === 'github');
-  const github = new Github({ token: token.accessToken });
-  const repo = github.getRepo('sahat', 'satellizer');
-  repo.getDetails((err, repo) => {
+  const github = new GitHub();
+  github.repos.get({ user: 'sahat', repo: 'hackathon-starter' }, (err, repo) => {
     if (err) { return next(err); }
     res.render('api/github', {
       title: 'GitHub API',
@@ -174,6 +174,7 @@ exports.getNewYorkTimes = (req, res, next) => {
     'api-key': process.env.NYT_KEY
   };
   request.get({ url: 'http://api.nytimes.com/svc/books/v2/lists', qs: query }, (err, request, body) => {
+    if (err) { return next(err); }
     if (request.statusCode === 403) {
       return next(new Error('Invalid New York Times API Key'));
     }
